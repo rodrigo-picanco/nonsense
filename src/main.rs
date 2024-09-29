@@ -17,11 +17,39 @@ const RBRACK: TokenKind= "RBRACK";
 const LBRACK: TokenKind = "LBRACK";
 const IDENT: TokenKind = "IDENT";
 
+struct Node {
+    token: Token,
+    children: Vec<Node>
+}
+
+trait Statement {
+    fn token_literal(&self) -> String;
+    fn string(&self) -> String;
+    fn node(&self) -> Node;
+}
+
+struct Program {
+    statements: Vec<Box<dyn Statement>>
+}
+
+struct Parser {
+    lexer: Lexer,
+    current_token: Token,
+    peek_token: Token
+}
+impl Parser {
+    fn new(input: &str ) -> Self {
+        let mut lexer = Lexer::new(input);
+        let current_token = lexer.next_token();
+        let peek_token = lexer.next_token();
+        Self { lexer: lexer, current_token, peek_token }
+    }
+}
+
 struct Token{
     kind: TokenKind,
     literal: String
 }
-
 struct Lexer {
     input: String,
     position: u64,
@@ -94,5 +122,12 @@ mod tests {
             let token = result.next_token();
             assert_eq!(token.literal, expected_token.literal);
         })
+    }
+
+    #[test]
+    fn test_parser() {
+        let input = ".users {}";
+        let mut parser = Parser::new(input); 
+        let expected_tree = Program { statements: vec![] };
     }
 }
