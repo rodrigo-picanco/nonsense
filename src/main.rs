@@ -16,6 +16,7 @@ const DOT: TokenKind = "DOT";
 const RBRACK: TokenKind= "RBRACK";
 const LBRACK: TokenKind = "LBRACK";
 const IDENT: TokenKind = "IDENT";
+const EOF: TokenKind = "EOF";
 
 struct Node {
     token: Token,
@@ -32,6 +33,48 @@ struct Program {
     statements: Vec<Box<dyn Statement>>
 }
 
+struct Identifier {
+    token: Token,
+    literal: String
+}
+
+struct DotStatement {
+    token: Token,
+    ident: Identifier
+}
+impl Statement for DotStatement {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn string(&self) -> String {
+        format!(".{}", self.ident.literal)
+    }
+
+    fn node(&self) -> Node {
+        Node { token: self.token.clone(), children: vec![] }
+    }
+}
+
+struct BlockStatement {
+    token: Token,
+    statements: Vec<Box<dyn Statement>>
+}
+impl Statement for BlockStatement {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn string(&self) -> String {
+        "NOT IMPLEMENTED".to_string()
+    }
+
+    fn node(&self) -> Node {
+        Node { token: self.token.clone(), children: vec![] }
+    }
+}
+
+
 struct Parser {
     lexer: Lexer,
     current_token: Token,
@@ -44,11 +87,57 @@ impl Parser {
         let peek_token = lexer.next_token();
         Self { lexer: lexer, current_token, peek_token }
     }
+
+    fn run(&mut self) -> Program {
+        let mut program = Program { statements: vec![] };
+        while self.current_token.kind != "EOF" {
+            let statement = self.parse_statement();
+            program.statements.push(statement);
+            self.next_token();
+        }
+        program
+    }
+
+    fn next_token(&mut self) {
+        self.current_token = self.peek_token.clone();
+        self.peek_token = self.lexer.next_token();
+    }
+
+    fn parse_statement(&mut self) -> Box<dyn Statement> {
+        match self.current_token.kind {
+            "DOT" => self.parse_dot(),
+            "LBRACK" => self.parse_block_statement(),
+            _ => panic!("Unknown token {}", self.current_token.kind)
+        }
+    }
+
+    fn parse_block_statement(&mut self) -> Box<dyn Statement> {
+        self.next_token();
+        self.next_token();
+        Box::new(BlockStatement { token: self.current_token.clone(), statements: vec![] })
+    }
+
+    fn parse_dot(&mut self) -> Box<dyn Statement> {
+        let token = self.current_token.clone();
+        self.next_token();
+        let ident = self.parse_identifier();
+        let statement = DotStatement { token, ident };
+        Box::new(statement)
+    }
+
+    fn parse_identifier(&mut self) -> Identifier {
+        Identifier { token: self.current_token.clone(), literal: self.current_token.literal.clone() }
+    }
 }
 
 struct Token{
     kind: TokenKind,
     literal: String
+}
+impl Clone for Token {
+    fn clone(&self) -> Self {
+        Self { kind: self.kind, literal: self.literal.clone() }
+    }
 }
 struct Lexer {
     input: String,
@@ -67,6 +156,7 @@ impl Lexer {
             '.' => Token { kind: DOT, literal: ".".to_string() },
             '{' => Token { kind: LBRACK, literal: "{".to_string() },
             '}' => Token { kind: RBRACK, literal: "}".to_string() },
+            '0' => Token { kind: EOF, literal: "".to_string() },
             _ => {
                 if self.character.is_alphabetic() {
                     return Token { kind: IDENT, literal: self.read_identifier() }
@@ -128,6 +218,12 @@ mod tests {
     fn test_parser() {
         let input = ".users {}";
         let mut parser = Parser::new(input); 
-        let expected_tree = Program { statements: vec![] };
+        let expected_tree = Program { statements: vec![
+            Box::new(DotStatement { token: Token { kind: DOT, literal: ".".to_string() }, ident: Identifier { token: Token { kind: IDENT, literal: "users".to_string() }, literal: "users".to_string() } })
+        ]};
+        let result = parser.run();
+        expected_tree.statements.iter().zip(result.statements.iter()).for_each(|(expected, result)| {
+            assert_eq!(expected.token_literal(), result.token_literal());
+        });
     }
 }
