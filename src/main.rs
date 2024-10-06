@@ -27,10 +27,25 @@ trait Statement {
     fn token_literal(&self) -> String;
     fn string(&self) -> String;
     fn node(&self) -> Node;
+    fn eval(&self) -> String;
 }
 
 struct Program {
     statements: Vec<Box<dyn Statement>>
+}
+impl Program {
+    fn new(input: &str) -> Self {
+        Parser::new(input).run()
+    }
+
+    fn run(&self) -> String {
+        self.statements
+            .iter()
+            .map(|statement| statement.eval())
+            .collect::<Vec<String>>()
+            .join(" ")
+
+    }
 }
 
 struct Identifier {
@@ -51,6 +66,10 @@ impl Statement for DotStatement {
         format!(".{}", self.ident.literal)
     }
 
+    fn eval(&self) -> String {
+        format!("SELECT * FROM {};", self.ident.literal)
+    }
+
     fn node(&self) -> Node {
         Node { token: self.token.clone(), children: vec![] }
     }
@@ -63,6 +82,10 @@ struct BlockStatement {
 impl Statement for BlockStatement {
     fn token_literal(&self) -> String {
         self.token.literal.clone()
+    }
+
+    fn eval(&self) -> String {
+        "".to_string()
     }
 
     fn string(&self) -> String {
@@ -225,5 +248,10 @@ mod tests {
         expected_tree.statements.iter().zip(result.statements.iter()).for_each(|(expected, result)| {
             assert_eq!(expected.token_literal(), result.token_literal());
         });
+    }
+
+    #[test]
+    fn test_run() {
+        assert_eq!(Program::new(".users {}").run(), "SELECT * FROM users; ");
     }
 }
