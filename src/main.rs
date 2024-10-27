@@ -29,15 +29,7 @@ const LBRACK: TokenKind = "LBRACK";
 const IDENT: TokenKind = "IDENT";
 const EOF: TokenKind = "EOF";
 
-struct Node {
-    token: Token,
-    children: Vec<Node>,
-}
-
 trait Statement {
-    fn token_literal(&self) -> String;
-    fn string(&self) -> String;
-    fn node(&self) -> Node;
     fn eval(&self) -> String;
 }
 
@@ -58,105 +50,40 @@ impl Program {
     }
 }
 
-struct Identifier {
-    token: Token,
+struct IdentifierStatement {
     literal: String,
+}
+impl Statement for IdentifierStatement {
+    fn eval(&self) -> String {
+        self.literal.clone()
+    }
 }
 
 struct DotStatement {
-    token: Token,
-    ident: Identifier,
-    children: Vec<Box<dyn Statement>>,
+    ident: IdentifierStatement,
+    block: BlockStatement,
 }
 impl Statement for DotStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
-
-    fn string(&self) -> String {
-        format!(".{}", self.ident.literal)
-    }
-
     fn eval(&self) -> String {
-        println!("evaluating dot statement");
-        let columns = self.children.iter().map(|child| child.eval()).collect::<String>();
-
+        let columns = self.block.eval();
         if columns.is_empty() {
             return format!("SELECT * FROM {};", self.ident.literal);
         }
-
         let table = &self.ident.literal;
         format!("SELECT {} FROM {};", columns, table)
-    }
-
-    fn node(&self) -> Node {
-        Node {
-            token: self.token.clone(),
-            children: vec![],
-        }
     }
 }
 
 struct BlockStatement {
-    token: Token,
-    statements: Vec<Box<dyn Statement>>,
+    properties: Vec<IdentifierStatement>,
 }
 impl Statement for BlockStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
-
     fn eval(&self) -> String {
-        self.statements
+        self.properties
             .iter()
             .map(|statement| statement.eval())
             .collect::<Vec<String>>()
             .join(", ")
-    }
-
-    fn string(&self) -> String {
-        format!(
-            "
-        {{
-            {}
-        
-        }}
-        ",
-            self.statements
-                .iter()
-                .map(|statement| statement.string())
-                .collect::<Vec<String>>()
-                .join(",")
-        )
-    }
-
-    fn node(&self) -> Node {
-        Node {
-            token: self.token.clone(),
-            children: vec![],
-        }
-    }
-}
-
-struct PropertyStatement {
-    token: Token,
-    ident: Identifier,
-}
-impl Statement for PropertyStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
-    fn eval(&self) -> String {
-        format!("{}", self.ident.literal)
-    }
-    fn string(&self) -> String {
-        self.ident.literal.clone()
-    }
-    fn node(&self) -> Node {
-        Node {
-            token: self.token.clone(),
-            children: vec![],
-        }
     }
 }
 
@@ -180,7 +107,6 @@ impl Parser {
     fn run(&mut self) -> Program {
         let mut program = Program { statements: vec![] };
         loop {
-            println!(" parsing token of kind {}", self.current_token.kind);
             if self.current_token.kind == EOF {
                 break;
             }
@@ -200,52 +126,37 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Box<dyn Statement> {
         match self.current_token.kind {
-            "DOT" => self.parse_dot(),
-            "LBRACK" => self.parse_block_statement(),
-            _ => panic!("Unknown token {}", self.current_token.kind),
+            "DOT" => Box::new(self.parse_dot()),
+            "LBRACK" => Box::new(self.parse_block_statement()),
+            _ => panic!("PARSE ERROR: unknown token {}", self.current_token.kind),
         }
     }
 
-    fn parse_property_statement(&mut self) -> Box<dyn Statement> {
-        println!("parsing a property statement {}", self.current_token.kind);
-        Box::new(PropertyStatement {
-            token: self.current_token.clone(),
-            ident: self.parse_identifier(),
-        })
-    }
-
-    fn parse_block_statement(&mut self) -> Box<dyn Statement> {
-        println!("parsing a block statement {}", self.current_token.kind);
+    fn parse_block_statement(&mut self) -> BlockStatement {
         self.next_token();
         self.next_token();
-        let token = self.current_token.clone();
-        let mut statements = vec![];
-
-        while self.current_token.kind != "RBRACK" {
-            let statement = self.parse_property_statement();
-            statements.push(statement);
+        let mut properties = vec![];
+        loop {
+            if self.current_token.kind == "RBRACK" {
+                break;
+            }
+            properties.push(self.parse_identifier());
             self.next_token();
         }
 
-        Box::new(BlockStatement { token, statements })
+        BlockStatement { properties }
     }
 
-    fn parse_dot(&mut self) -> Box<dyn Statement> {
-        let token = self.current_token.clone();
+    fn parse_dot(&mut self) -> DotStatement {
         self.next_token();
-        let ident = self.parse_identifier();
-        let statement = DotStatement {
-            token,
-            ident,
-            children: vec![self.parse_block_statement()],
-        };
-        Box::new(statement)
+        DotStatement {
+            ident: self.parse_identifier(),
+            block: self.parse_block_statement(),
+        }
     }
 
-    fn parse_identifier(&mut self) -> Identifier {
-        println!("parsing an identifier {}", self.current_token.kind);
-        Identifier {
-            token: self.current_token.clone(),
+    fn parse_identifier(&mut self) -> IdentifierStatement {
+        IdentifierStatement {
             literal: self.current_token.literal.clone(),
         }
     }
@@ -305,7 +216,7 @@ impl Lexer {
                         literal: self.read_identifier(),
                     }
                 } else {
-                    panic!("Unknown token {}", self.character);
+                    panic!("LEX ERROR: Unknown token {}", self.character);
                 }
             }
         };
@@ -399,51 +310,19 @@ mod tests {
         let mut parser = Parser::new(input);
         let expected_tree = Program {
             statements: vec![Box::new(DotStatement {
-                token: Token {
-                    kind: DOT,
-                    literal: ".".to_string(),
-                },
-                ident: Identifier {
-                    token: Token {
-                        kind: IDENT,
-                        literal: "users".to_string(),
-                    },
+                ident: IdentifierStatement {
                     literal: "users".to_string(),
                 },
-                children: vec![Box::new(BlockStatement {
-                    token: Token {
-                        kind: LBRACK,
-                        literal: "{".to_string(),
-                    },
-                    statements: vec![
-                        Box::new(PropertyStatement {
-                            token: Token {
-                                kind: IDENT,
-                                literal: "name".to_string(),
-                            },
-                            ident: Identifier {
-                                token: Token {
-                                    kind: IDENT,
-                                    literal: "name".to_string(),
-                                },
-                                literal: "name".to_string(),
-                            },
-                        }),
-                        Box::new(PropertyStatement {
-                            token: Token {
-                                kind: IDENT,
-                                literal: "id".to_string(),
-                            },
-                            ident: Identifier {
-                                token: Token {
-                                    kind: IDENT,
-                                    literal: "id".to_string(),
-                                },
-                                literal: "id".to_string(),
-                            },
-                        }),
+                block: BlockStatement {
+                    properties: vec![
+                        IdentifierStatement {
+                            literal: "name".to_string(),
+                        },
+                        IdentifierStatement {
+                            literal: "id".to_string(),
+                        },
                     ],
-                })],
+                },
             })],
         };
         let result = parser.run();
@@ -452,7 +331,7 @@ mod tests {
             .iter()
             .zip(result.statements.iter())
             .for_each(|(expected, result)| {
-                assert_eq!(expected.token_literal(), result.token_literal());
+                assert_eq!(expected.eval(), result.eval());
             });
     }
 
