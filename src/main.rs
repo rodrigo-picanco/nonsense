@@ -1,24 +1,10 @@
-// The example of the language we want to write
-//
-//
-// .users {
-// }
-//
-// results in:
-//
-// SELECT * FROM users;
-//
-// .users {
-//   name
-// }
-//
-// results in:
-//
-// SELECT name FROM users;
+use std::env;
 
 fn main() {
-    let input = ".users {}";
-    let program = Program::new(input);
+    let args: Vec<String> = env::args().collect();
+    let filename = &args[1];
+    let input = std::fs::read_to_string(filename).expect("EXEC ERROR: Failed to read file");
+    let program = Program::new(&input);
     println!("{}", program.run());
 }
 
@@ -40,7 +26,6 @@ impl Program {
     fn new(input: &str) -> Self {
         Parser::new(input).run()
     }
-
     fn run(&self) -> String {
         self.statements
             .iter()
@@ -103,27 +88,22 @@ impl Parser {
             peek_token,
         }
     }
-
     fn run(&mut self) -> Program {
         let mut program = Program { statements: vec![] };
         loop {
             if self.current_token.kind == EOF {
                 break;
             }
-
             let statement = self.parse_statement();
             program.statements.push(statement);
             self.next_token();
         }
-
         program
     }
-
     fn next_token(&mut self) {
         self.current_token = self.peek_token.clone();
         self.peek_token = self.lexer.next_token();
     }
-
     fn parse_statement(&mut self) -> Box<dyn Statement> {
         match self.current_token.kind {
             "DOT" => Box::new(self.parse_dot()),
@@ -131,7 +111,6 @@ impl Parser {
             _ => panic!("PARSE ERROR: unknown token {}", self.current_token.kind),
         }
     }
-
     fn parse_block_statement(&mut self) -> BlockStatement {
         self.next_token();
         self.next_token();
@@ -143,10 +122,8 @@ impl Parser {
             properties.push(self.parse_identifier());
             self.next_token();
         }
-
         BlockStatement { properties }
     }
-
     fn parse_dot(&mut self) -> DotStatement {
         self.next_token();
         DotStatement {
@@ -154,7 +131,6 @@ impl Parser {
             block: self.parse_block_statement(),
         }
     }
-
     fn parse_identifier(&mut self) -> IdentifierStatement {
         IdentifierStatement {
             literal: self.current_token.literal.clone(),
@@ -189,7 +165,6 @@ impl Lexer {
             character: input.chars().nth(0).unwrap(),
         }
     }
-
     fn next_token(&mut self) -> Token {
         self.skip_whitespace();
         let token = match self.character {
@@ -223,7 +198,6 @@ impl Lexer {
         self.read_char();
         token
     }
-
     fn read_identifier(&mut self) -> String {
         let position = self.position;
         while self.character.is_alphabetic() {
@@ -236,7 +210,6 @@ impl Lexer {
             .collect::<String>()
             .clone()
     }
-
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() as u64 {
             self.character = '0';
@@ -246,7 +219,6 @@ impl Lexer {
         self.position = self.read_position;
         self.read_position += 1;
     }
-
     fn skip_whitespace(&mut self) {
         while self.character.is_whitespace() {
             self.read_char();
@@ -257,7 +229,6 @@ impl Lexer {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_lexer() {
         let expected = vec![
@@ -294,7 +265,6 @@ mod tests {
             }
             ",
         );
-
         expected.iter().for_each(|expected_token| {
             let token = result.next_token();
             assert_eq!(token.literal, expected_token.literal);
