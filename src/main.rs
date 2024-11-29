@@ -230,7 +230,6 @@ impl Lexer {
 mod tests {
     use super::*;
 
-
     #[cfg(test)]
     mod test_lexer {
         use super::*;
@@ -246,142 +245,183 @@ mod tests {
                         break;
                     }
                 }
-                $expected.iter().zip(tokens.iter()).for_each(|(expected, result)| {
-                    assert_eq!(expected.kind, result.kind);
-                    assert_eq!(expected.literal, result.literal);
-                });
+                $expected
+                    .iter()
+                    .zip(tokens.iter())
+                    .for_each(|(expected, result)| {
+                        assert_eq!(expected.kind, result.kind);
+                        assert_eq!(expected.literal, result.literal);
+                    });
             };
         }
 
         #[test]
         fn dot_statement() {
-            test_lexer!(".users {}", vec![
-                Token {
-                    kind: DOT,
-                    literal: ".".to_string(),
-                },
-                Token {
-                    kind: IDENT,
-                    literal: "users".to_string(),
-                },
-                Token {
-                    kind: LBRACK,
-                    literal: "{".to_string(),
-                },
-                Token {
-                    kind: RBRACK,
-                    literal: "}".to_string(),
-                },
-            ]);
+            test_lexer!(
+                ".users {}",
+                vec![
+                    Token {
+                        kind: DOT,
+                        literal: ".".to_string(),
+                    },
+                    Token {
+                        kind: IDENT,
+                        literal: "users".to_string(),
+                    },
+                    Token {
+                        kind: LBRACK,
+                        literal: "{".to_string(),
+                    },
+                    Token {
+                        kind: RBRACK,
+                        literal: "}".to_string(),
+                    },
+                ]
+            );
         }
 
         #[test]
         fn block_statement() {
-            test_lexer!(".users { name, id }", vec![
-                Token {
-                    kind: DOT,
-                    literal: ".".to_string(),
-                },
-                Token {
-                    kind: IDENT,
-                    literal: "users".to_string(),
-                },
-                Token {
-                    kind: LBRACK,
-                    literal: "{".to_string(),
-                },
-                Token {
-                    kind: IDENT,
-                    literal: "name".to_string(),
-                },
-                Token {
-                    kind: IDENT,
-                    literal: "id".to_string(),
-                },
-                Token {
-                    kind: RBRACK,
-                    literal: "}".to_string(),
-                },
-            ]);
+            test_lexer!(
+                ".users { name, id }",
+                vec![
+                    Token {
+                        kind: DOT,
+                        literal: ".".to_string(),
+                    },
+                    Token {
+                        kind: IDENT,
+                        literal: "users".to_string(),
+                    },
+                    Token {
+                        kind: LBRACK,
+                        literal: "{".to_string(),
+                    },
+                    Token {
+                        kind: IDENT,
+                        literal: "name".to_string(),
+                    },
+                    Token {
+                        kind: IDENT,
+                        literal: "id".to_string(),
+                    },
+                    Token {
+                        kind: RBRACK,
+                        literal: "}".to_string(),
+                    },
+                ]
+            );
         }
 
         #[test]
         fn joint_dot_statement() {
-            test_lexer!(".users .posts {}", vec![
-                Token {
-                    kind: DOT,
-                    literal: ".".to_string(),
-                },
-                Token {
-                    kind: IDENT,
-                    literal: "users".to_string(),
-                },
-                Token {
-                    kind: DOT,
-                    literal: ".".to_string(),
-                },
-                Token {
-                    kind: IDENT,
-                    literal: "posts".to_string(),
-                },
-                Token {
-                    kind: LBRACK,
-                    literal: "{".to_string(),
-                },
-                Token {
-                    kind: RBRACK,
-                    literal: "}".to_string(),
-                },
-            ]);
+            test_lexer!(
+                ".users .posts {}",
+                vec![
+                    Token {
+                        kind: DOT,
+                        literal: ".".to_string(),
+                    },
+                    Token {
+                        kind: IDENT,
+                        literal: "users".to_string(),
+                    },
+                    Token {
+                        kind: DOT,
+                        literal: ".".to_string(),
+                    },
+                    Token {
+                        kind: IDENT,
+                        literal: "posts".to_string(),
+                    },
+                    Token {
+                        kind: LBRACK,
+                        literal: "{".to_string(),
+                    },
+                    Token {
+                        kind: RBRACK,
+                        literal: "}".to_string(),
+                    },
+                ]
+            );
         }
     }
 
-    #[test]
-    fn test_parse() {
-        let input = ".users {
-            name,
-            id
-        }";
-        let mut parser = Parser::new(input);
-        let expected_tree = Program {
-            statements: vec![Box::new(DotStatement {
-                ident: IdentifierStatement {
-                    literal: "users".to_string(),
-                },
-                block: BlockStatement {
-                    properties: vec![
-                        IdentifierStatement {
-                            literal: "name".to_string(),
+    #[cfg(test)]
+    mod test_parser {
+        use super::*;
+
+        macro_rules! test_parser {
+            ($input: expr, $exp: expr) => {
+                let mut parser = Parser::new($input);
+                let result = parser.run();
+                $exp.statements
+                    .iter()
+                    .zip(result.statements.iter())
+                    .for_each(|(expected, result)| {
+                        assert_eq!(expected.eval(), result.eval());
+                    });
+            };
+        }
+
+        #[test]
+        fn dot_statement() {
+            test_parser!(
+                ".users {}",
+                Program {
+                    statements: vec![Box::new(DotStatement {
+                        ident: IdentifierStatement {
+                            literal: "users".to_string(),
                         },
-                        IdentifierStatement {
-                            literal: "id".to_string(),
+                        block: BlockStatement { properties: vec![] },
+                    })],
+                }
+            );
+        }
+
+        #[test]
+        fn block_statement() {
+            test_parser!(
+                ".users { name, id }",
+                Program {
+                    statements: vec![Box::new(DotStatement {
+                        ident: IdentifierStatement {
+                            literal: "users".to_string(),
                         },
-                    ],
-                },
-            })],
-        };
-        let result = parser.run();
-        expected_tree
-            .statements
-            .iter()
-            .zip(result.statements.iter())
-            .for_each(|(expected, result)| {
-                assert_eq!(expected.eval(), result.eval());
-            });
+                        block: BlockStatement {
+                            properties: vec![
+                                IdentifierStatement {
+                                    literal: "name".to_string(),
+                                },
+                                IdentifierStatement {
+                                    literal: "id".to_string(),
+                                },
+                            ],
+                        },
+                    })],
+                }
+            );
+        }
     }
 
-    #[test]
-    fn test_run() {
-        assert_eq!(Program::new(".users {}").run(), "SELECT * FROM users;");
-        assert_eq!(
-            Program::new(
-                ".users {
-            name,
-            id
-        }"
-            )
-            .run(),
-            "SELECT name, id FROM users;"
-        );
+    #[cfg(test)]
+    mod test_run {
+        use super::*;
+
+        macro_rules! test_run {
+            ($input: expr, $expected: expr) => {
+                assert_eq!(Program::new($input).run(), $expected);
+            };
+        }
+
+        #[test]
+        fn dot_statement() {
+            test_run!(".users {}", "SELECT * FROM users;");
+        }
+
+        #[test]
+        fn block_statement() {
+            test_run!(".users { name, id }", "SELECT name, id FROM users;");
+        }
     }
 }
