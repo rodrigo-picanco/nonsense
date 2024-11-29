@@ -229,46 +229,111 @@ impl Lexer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn test_lexer() {
-        let expected = vec![
-            Token {
-                kind: DOT,
-                literal: ".".to_string(),
-            },
-            Token {
-                kind: IDENT,
-                literal: "users".to_string(),
-            },
-            Token {
-                kind: LBRACK,
-                literal: "{".to_string(),
-            },
-            Token {
-                kind: IDENT,
-                literal: "name".to_string(),
-            },
-            Token {
-                kind: IDENT,
-                literal: "id".to_string(),
-            },
-            Token {
-                kind: RBRACK,
-                literal: "}".to_string(),
-            },
-        ];
-        let mut result = Lexer::new(
-            "
-            .users {
-                name,
-                id
-            }
-            ",
-        );
-        expected.iter().for_each(|expected_token| {
-            let token = result.next_token();
-            assert_eq!(token.literal, expected_token.literal);
-        })
+
+
+    #[cfg(test)]
+    mod test_lexer {
+        use super::*;
+
+        macro_rules! test_lexer {
+            ($input:expr, $expected:expr) => {
+                let mut lexer = Lexer::new($input);
+                let mut tokens = vec![];
+                loop {
+                    let token = lexer.next_token();
+                    tokens.push(token.clone());
+                    if token.kind == EOF {
+                        break;
+                    }
+                }
+                $expected.iter().zip(tokens.iter()).for_each(|(expected, result)| {
+                    assert_eq!(expected.kind, result.kind);
+                    assert_eq!(expected.literal, result.literal);
+                });
+            };
+        }
+
+        #[test]
+        fn dot_statement() {
+            test_lexer!(".users {}", vec![
+                Token {
+                    kind: DOT,
+                    literal: ".".to_string(),
+                },
+                Token {
+                    kind: IDENT,
+                    literal: "users".to_string(),
+                },
+                Token {
+                    kind: LBRACK,
+                    literal: "{".to_string(),
+                },
+                Token {
+                    kind: RBRACK,
+                    literal: "}".to_string(),
+                },
+            ]);
+        }
+
+        #[test]
+        fn block_statement() {
+            test_lexer!(".users { name, id }", vec![
+                Token {
+                    kind: DOT,
+                    literal: ".".to_string(),
+                },
+                Token {
+                    kind: IDENT,
+                    literal: "users".to_string(),
+                },
+                Token {
+                    kind: LBRACK,
+                    literal: "{".to_string(),
+                },
+                Token {
+                    kind: IDENT,
+                    literal: "name".to_string(),
+                },
+                Token {
+                    kind: IDENT,
+                    literal: "id".to_string(),
+                },
+                Token {
+                    kind: RBRACK,
+                    literal: "}".to_string(),
+                },
+            ]);
+        }
+
+        #[test]
+        fn joint_dot_statement() {
+            test_lexer!(".users .posts {}", vec![
+                Token {
+                    kind: DOT,
+                    literal: ".".to_string(),
+                },
+                Token {
+                    kind: IDENT,
+                    literal: "users".to_string(),
+                },
+                Token {
+                    kind: DOT,
+                    literal: ".".to_string(),
+                },
+                Token {
+                    kind: IDENT,
+                    literal: "posts".to_string(),
+                },
+                Token {
+                    kind: LBRACK,
+                    literal: "{".to_string(),
+                },
+                Token {
+                    kind: RBRACK,
+                    literal: "}".to_string(),
+                },
+            ]);
+        }
     }
 
     #[test]
