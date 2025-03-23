@@ -31,3 +31,8 @@ It reads from a file and writes to stdout
 ```bash
 nonsense input.css > output.sql
 ```
+
+# Inspirations
+
+I've recently began to try to use the [grammar for CSS 1](https://www.w3.org/TR/CSS1/#appendix-b)
+

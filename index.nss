@@ -1,3 +1,3 @@
-.users {
+users {
   company_id
 }

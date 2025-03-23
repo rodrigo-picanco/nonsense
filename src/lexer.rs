@@ -1,9 +1,8 @@
 type TokenKind = &'static str;
 
-pub const DOT: TokenKind = "DOT";
 const RBRACK: TokenKind = "RBRACK";
 pub const LBRACK: TokenKind = "LBRACK";
-const IDENT: TokenKind = "IDENT";
+pub const IDENT: TokenKind = "IDENT";
 pub const EOF: TokenKind = "EOF";
 
 #[derive(PartialEq, Debug)]
@@ -38,10 +37,6 @@ impl Lexer {
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
         let token = match self.character {
-            '.' => Token {
-                kind: DOT,
-                literal: ".".to_string(),
-            },
             '{' => Token {
                 kind: LBRACK,
                 literal: "{".to_string(),
@@ -128,12 +123,8 @@ mod tests {
         #[test]
         fn class_selector() {
             test_lexer!(
-                ".users {}",
+                "users {}",
                 vec![
-                    Token {
-                        kind: DOT,
-                        literal: ".".to_string(),
-                    },
                     Token {
                         kind: IDENT,
                         literal: "users".to_string(),
@@ -153,12 +144,8 @@ mod tests {
         #[test]
         fn block_statement() {
             test_lexer!(
-                ".users { name, id }",
+                "users { name, id }",
                 vec![
-                    Token {
-                        kind: DOT,
-                        literal: ".".to_string(),
-                    },
                     Token {
                         kind: IDENT,
                         literal: "users".to_string(),
@@ -186,19 +173,11 @@ mod tests {
         #[test]
         fn joint_class_selector() {
             test_lexer!(
-                ".users .posts {}",
+                "users posts {}",
                 vec![
-                    Token {
-                        kind: DOT,
-                        literal: ".".to_string(),
-                    },
                     Token {
                         kind: IDENT,
                         literal: "users".to_string(),
-                    },
-                    Token {
-                        kind: DOT,
-                        literal: ".".to_string(),
                     },
                     Token {
                         kind: IDENT,
