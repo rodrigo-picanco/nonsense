@@ -58,7 +58,7 @@ impl Parser {
             declarations.push(Declaration {
                 property: self.current_token.literal.clone(),
             });
-            self.next_token(); 
+            self.next_token();
         }
         self.next_token(); // SKIP BRACKET
         declarations
@@ -112,19 +112,17 @@ mod tests {
             );
         }
 
-        //#[test]
-        //fn joint_class_selector() {
-        //    test_parser!(
-        //        ".users .posts {}",
-        //        Program {
-        //            statements: vec![Box::new(DotStatement {
-        //                ident: IdentifierStatement {
-        //                    literal: "users".to_string(),
-        //                },
-        //                block: Some(BlockStatement { properties: vec![] }),
-        //            })],
-        //        }
-        //    );
-        //}
+        #[test]
+        fn joint_class_selector() {
+            test_parser!(
+                "users posts {}",
+                vec![Rule {
+                    selector: Selector {
+                        literals: vec!["users".to_string(), "posts".to_string()]
+                    },
+                    declarations: vec![]
+                }]
+            );
+        }
     }
 }

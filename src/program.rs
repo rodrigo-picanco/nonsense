@@ -31,16 +31,16 @@ mod tests {
             };
         }
         #[test]
-        fn class_selector() {
-            test_run!("users {}", "SELECT * FROM users;");
+        fn select_all() {
+            test_run!("users {}", "SELECT users.* FROM users;");
         }
         #[test]
-        fn block_statement() {
+        fn select_fields() {
             test_run!("users { name, id }", "SELECT name, id FROM users;");
         }
         #[test]
-        fn mul_statement() {
-            test_run!("users {}", "SELECT * FROM users;");
+        fn join() {
+            test_run!("users posts {}", "SELECT users.*, posts.* FROM users JOIN posts ON users.id = posts.users_id;");
         }
     }
 }
